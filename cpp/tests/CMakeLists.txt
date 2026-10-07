@@ -9,6 +9,7 @@ set(SE_TESTS
     test_gaussian.cpp
     test_motion_models.cpp
     test_measurement_models.cpp
+    test_histogram_filter.cpp
 )
 
 add_executable(state_estimation_tests ${SE_TESTS})

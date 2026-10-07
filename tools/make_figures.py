@@ -158,6 +158,37 @@ def likelihoods():
     save(fig, "03_likelihoods.png")
 
 
+# ---------------------------------------------------------------- chapter 4
+@figure("04")
+def grid_localization():
+    landmarks = np.array([[2.0, 2.0], [2.0, 6.0], [10.0, 2.0], [10.0, 6.0], [6.0, 4.0], [8.5, 6.5]])
+    dd, dt, k = se.DifferentialDrive(0.1, 0.5), 0.1, 1e-4
+    u = np.vstack([np.tile([0.5, 0.0], (60, 1)), np.tile([0.5, 0.5], (31, 1)), np.tile([0.5, 0.0], (80, 1))])
+    x0 = np.array([3.0, 1.0, 0.0])
+    truth = se.integrate_controls(x0, u, dt)
+    odom = se.run_dead_reckoning(x0, np.zeros((3, 3)), se.simulate_wheel_travel(u, dt, dd, k, se.Rng(1)), dd, k).poses
+    sensor = se.RangeBearingSensor(max_range=4.0, fov=2 * np.pi, sigma_range=0.1, sigma_bearing=0.05)
+    grid = se.GridLocalization(se.GridSpec(0, 12, 0, 8, 0.2, 36))
+    rng = se.Rng(2)
+    snapshots = {}
+    for kk in range(len(u) + 1):
+        if kk > 0:
+            grid.predict_odometry(odom[kk - 1], odom[kk], [0.02, 0.002, 0.02, 0.002])
+        if kk % 5 == 0:
+            grid.update_range_bearing_anonymous(sensor.observe(truth[kk], landmarks, rng), landmarks, sensor.R())
+        if kk in (0, 60, 120, len(u)):
+            snapshots[kk] = grid.marginal_xy()
+    fig, axes = plt.subplots(1, 4, figsize=(16, 3.6))
+    for ax, (kk, m) in zip(axes, snapshots.items()):
+        ax.imshow(m ** 0.5, origin="lower", extent=(0, 12, 0, 8), cmap="Blues")
+        ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=11, mec="k")
+        ax.plot(truth[: kk + 1, 0], truth[: kk + 1, 1], "-", color=plotting.COLORS["truth"], lw=1)
+        ax.plot(*truth[kk, :2], "o", color="w", mec="k", ms=5)
+        ax.set_title(f"step {kk}")
+    fig.suptitle("Global localisation with indistinguishable landmarks: √ of the (x, y) marginal of the grid belief")
+    save(fig, "04_grid_localization.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:
