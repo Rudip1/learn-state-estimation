@@ -8,3 +8,4 @@
 namespace py = pybind11;
 
 void bind_gaussian(py::module_& m);
+void bind_motion(py::module_& m);

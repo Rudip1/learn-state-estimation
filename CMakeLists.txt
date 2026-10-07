@@ -31,6 +31,7 @@ if(NOT TARGET Eigen3::Eigen)
         eigen
         URL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
         URL_HASH SHA256=8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
         SOURCE_SUBDIR _header_only_do_not_configure)
     FetchContent_MakeAvailable(eigen)
     add_library(Eigen3::Eigen INTERFACE IMPORTED)
@@ -40,6 +41,9 @@ endif()
 # ---- The library ----
 add_library(state_estimation STATIC
     cpp/src/gaussian.cpp
+    cpp/src/motion_models.cpp
+    cpp/src/pose2.cpp
+    cpp/src/simulation.cpp
 )
 target_include_directories(state_estimation PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>)
@@ -63,6 +67,7 @@ if(SE_BUILD_PYTHON)
     pybind11_add_module(_core MODULE
         python/state_estimation/bindings/module.cpp
         python/state_estimation/bindings/bind_gaussian.cpp
+        python/state_estimation/bindings/bind_motion.cpp
     )
     target_link_libraries(_core PRIVATE state_estimation)
     install(TARGETS _core DESTINATION state_estimation)

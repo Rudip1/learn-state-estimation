@@ -83,6 +83,52 @@ def banana():
     save(fig, "01_banana.png")
 
 
+# ---------------------------------------------------------------- chapter 2
+@figure("02")
+def odometry_samples():
+    o0, o1 = np.array([0.0, 0.0, 0.0]), np.array([1.0, 0.6, 0.8])
+    cases = [("rotation noise", [0.05, 0.001, 0.001, 0.001]),
+             ("translation noise", [0.001, 0.001, 0.05, 0.001]),
+             ("both", [0.03, 0.01, 0.03, 0.01])]
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharex=True, sharey=True)
+    for ax, (title, alpha) in zip(axes, cases):
+        rng = se.Rng(2)
+        s = np.array([se.sample_odometry_motion(o0, o0, o1, alpha, rng) for _ in range(1500)])
+        plotting.new_axes(ax)
+        ax.plot(s[:, 0], s[:, 1], ".", ms=2, color=plotting.COLORS["particles"])
+        plotting.plot_pose(ax, o0, 0.25)
+        plotting.plot_pose(ax, o1, 0.25, color=plotting.COLORS["truth"])
+        ax.set_title(f"{title}\nα = {alpha}", fontsize=9)
+    save(fig, "02_odometry_samples.png")
+
+
+@figure("02")
+def dead_reckoning():
+    dd = se.DifferentialDrive(0.1, 0.5)
+    dt, k = 0.1, 1e-4
+    u = se.figure_eight_controls(2.0, 200, dt)
+    truth = se.integrate_controls(np.zeros(3), u, dt)
+    rng = se.Rng(4)
+    run = se.run_dead_reckoning(np.zeros(3), np.zeros((3, 3)), se.simulate_wheel_travel(u, dt, dd, k, rng), dd, k)
+    ends = []
+    for _ in range(300):
+        r = se.run_dead_reckoning(np.zeros(3), np.zeros((3, 3)), se.simulate_wheel_travel(u, dt, dd, k, rng), dd, k)
+        ends.append(r.poses[-1])
+    ends = np.array(ends)
+    fig, ax = plt.subplots(figsize=(7.5, 5))
+    plotting.new_axes(ax)
+    plotting.plot_trajectory(ax, truth, "ground truth", plotting.COLORS["truth"])
+    plotting.plot_trajectory(ax, run.poses, "dead reckoning", plotting.COLORS["dead_reckoning"])
+    for i in range(0, len(run.poses), 50):
+        plotting.plot_ellipse(ax, run.poses[i], run.covariances[i], 0.95, color=plotting.COLORS["estimate"])
+    ax.plot(ends[:, 0], ends[:, 1], ".", ms=3, color="0.5", label="final pose, 300 runs")
+    plotting.plot_ellipse(ax, run.poses[-1], run.covariances[-1], 0.95, color=plotting.COLORS["estimate"],
+                          label="predicted 95 % ellipse")
+    ax.legend(fontsize=8, loc="center left", bbox_to_anchor=(1.02, 0.5))
+    ax.set_title("Dead reckoning on a figure eight: uncertainty grows without bound")
+    save(fig, "02_dead_reckoning.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:

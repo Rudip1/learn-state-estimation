@@ -1,5 +1,6 @@
 set(SE_EXAMPLES
     01_probability
+    02_dead_reckoning
 )
 
 foreach(example ${SE_EXAMPLES})
