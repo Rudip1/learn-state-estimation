@@ -327,6 +327,38 @@ def mcl():
     save(fig, "07_mcl.png")
 
 
+# ---------------------------------------------------------------- chapter 8
+@figure("08")
+def jcbb_corridor():
+    # The worked example of section 8.3, drawn in the world frame from the estimated robot position (origin).
+    offset = 0.9
+    landmarks = np.array([[float(j), 0.0] for j in range(4)])
+    P = np.diag([1.0, 0.01])
+    R = np.eye(2) * 0.01
+    noise = np.array([[-0.01, 0.0], [0.01, 0.005], [-0.01, 0.01], [0.01, 0.015]])
+    z = landmarks - np.array([offset, 0.0]) + noise
+    problem = se.AssociationProblem(list(z), list(landmarks), [-np.eye(2)] * 4, P, R)
+    results = {"ICNN": se.associate_icnn(problem), "JCBB": se.associate_jcbb(problem)}
+    fig, axes = plt.subplots(2, 1, figsize=(8, 4.4), sharex=True)
+    for ax, (name, a) in zip(axes, results.items()):
+        ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=14, mec="k",
+                label="landmarks")
+        ax.plot(z[:, 0], z[:, 1], "o", color=plotting.COLORS["measurement"], label="readings (from the estimate)")
+        for i, j in enumerate(a.pairing):
+            if j >= 0:
+                ax.annotate("", xy=landmarks[j], xytext=z[i],
+                            arrowprops=dict(arrowstyle="->", color=plotting.COLORS["estimate"]))
+        plotting.plot_ellipse(ax, [0, 0], P, 0.95, color="0.4", ls="--", label="robot position, 95 %")
+        nis, dof = se.joint_nis(problem, a.pairing)
+        ax.set_title(f"{name}: pairing {list(a.pairing)}, joint NIS {nis:.1f} "
+                     f"(gate {se.chi2_quantile(0.95, dof):.1f})", fontsize=10)
+        ax.set_ylim(-0.6, 0.6)
+        ax.set_aspect("equal")
+        ax.grid(alpha=0.3)
+    axes[0].legend(fontsize=7, loc="upper right", ncol=3)
+    save(fig, "08_jcbb_corridor.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:

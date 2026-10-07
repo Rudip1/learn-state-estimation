@@ -9,4 +9,5 @@ PYBIND11_MODULE(_core, m) {
     bind_kalman(m);
     bind_ekf(m);
     bind_particle(m);
+    bind_association(m);
 }

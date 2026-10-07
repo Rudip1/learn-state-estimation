@@ -15,3 +15,4 @@ void bind_histogram(py::module_& m);
 void bind_kalman(py::module_& m);
 void bind_ekf(py::module_& m);
 void bind_particle(py::module_& m);
+void bind_association(py::module_& m);
