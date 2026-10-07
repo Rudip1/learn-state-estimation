@@ -42,6 +42,7 @@ endif()
 add_library(state_estimation STATIC
     cpp/src/data_association.cpp
     cpp/src/ekf.cpp
+    cpp/src/ekf_slam.cpp
     cpp/src/gaussian.cpp
     cpp/src/histogram_filter.cpp
     cpp/src/kalman_filter.cpp
@@ -80,6 +81,7 @@ if(SE_BUILD_PYTHON)
         python/state_estimation/bindings/bind_ekf.cpp
         python/state_estimation/bindings/bind_particle.cpp
         python/state_estimation/bindings/bind_association.cpp
+        python/state_estimation/bindings/bind_slam.cpp
     )
     target_link_libraries(_core PRIVATE state_estimation)
     install(TARGETS _core DESTINATION state_estimation)

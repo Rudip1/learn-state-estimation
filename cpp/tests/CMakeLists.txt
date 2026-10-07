@@ -14,6 +14,7 @@ set(SE_TESTS
     test_ekf.cpp
     test_particle_filter.cpp
     test_data_association.cpp
+    test_ekf_slam.cpp
 )
 
 add_executable(state_estimation_tests ${SE_TESTS})

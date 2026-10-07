@@ -359,6 +359,66 @@ def jcbb_corridor():
     save(fig, "08_jcbb_corridor.png")
 
 
+# ---------------------------------------------------------------- chapter 9
+def slam_loop_scenario():
+    angles = np.linspace(0, 2 * np.pi, 13)[:-1]
+    landmarks = np.vstack([np.c_[8.0 * np.cos(angles), 8.0 * np.sin(angles)],
+                           np.c_[4.0 * np.cos(angles + 0.26), 4.0 * np.sin(angles + 0.26)]])
+    dd, dt, k = se.DifferentialDrive(0.1, 0.5), 0.1, 2e-4
+    steps = int(2 * np.pi * 6.0 / (0.5 * dt))  # one loop of radius 6 m at 0.5 m/s
+    u = se.circle_controls(0.5, 6.0, int(steps * 1.15))
+    sensor = se.RangeBearingSensor(max_range=3.0, fov=np.deg2rad(180), sigma_range=0.05, sigma_bearing=0.02)
+    x0 = np.array([6.0, 0.0, np.pi / 2])
+    return landmarks, dd, dt, k, u, sensor, x0, steps
+
+
+def run_slam(landmarks, dd, dt, k, u, sensor, x0, seed=1, every=2):
+    run = se.simulate_landmark_run(x0, u, dt, dd, k, sensor, landmarks, every, se.Rng(seed))
+    slam = se.EkfSlam(x0, np.zeros((3, 3)))
+    poses, sig, nland = [x0], [0.0], [0]
+    for s, (dl, dr) in enumerate(run.wheel_travel):
+        slam.predict_wheels(dd, dl, dr, k * abs(dl), k * abs(dr))
+        slam.process_known(run.scans[s], sensor.R())
+        poses.append(slam.pose)
+        sig.append(np.sqrt(np.trace(slam.pose_covariance[:2, :2])))
+        nland.append(slam.n_landmarks)
+    return run, slam, np.array(poses), np.array(sig), np.array(nland)
+
+
+@figure("09")
+def ekf_slam():
+    landmarks, dd, dt, k, u, sensor, x0, steps = slam_loop_scenario()
+    run, slam, poses, sig, nland = run_slam(landmarks, dd, dt, k, u, sensor, x0)
+    fig = plt.figure(figsize=(14, 5.5))
+    ax = plotting.new_axes(fig.add_subplot(1, 2, 1))
+    ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=10, mec="k",
+            label="true landmarks")
+    plotting.plot_trajectory(ax, run.truth, "truth", plotting.COLORS["truth"])
+    plotting.plot_trajectory(ax, poses, "EKF SLAM", plotting.COLORS["estimate"])
+    for i in range(slam.n_landmarks):
+        plotting.plot_ellipse(ax, slam.landmark(i), slam.landmark_covariance(i) * 25, 0.95,
+                              color=plotting.COLORS["estimate"], lw=1)
+    ax.plot(slam.landmarks[:, 0], slam.landmarks[:, 1], "+", color=plotting.COLORS["estimate"], ms=8,
+            label="estimated landmarks (95 % ellipses × 5)")
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.07), ncol=2)
+    ax.set_title("map and trajectory after one loop")
+    a = fig.add_subplot(1, 2, 2)
+    t = np.arange(len(sig)) * dt
+    a.plot(t, sig, color=plotting.COLORS["estimate"], label="robot position σ (√trace)")
+    closure = int(np.argmin(np.diff(sig))) + 1  # the largest single-step drop
+    a.axvline(t[closure], color="k", ls=":", label="loop closure")
+    a.set_xlabel("t [s]")
+    a.set_ylabel("σ [m]")
+    a2 = a.twinx()
+    a2.plot(t, nland, color=plotting.COLORS["landmark"], label="landmarks in the map")
+    a2.set_ylabel("landmarks")
+    a.legend(loc="upper left", fontsize=8)
+    a2.legend(loc="center left", fontsize=8)
+    a.grid(alpha=0.3)
+    a.set_title("uncertainty grows while exploring and collapses at the loop closure")
+    save(fig, "09_ekf_slam.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:
