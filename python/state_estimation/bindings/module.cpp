@@ -7,4 +7,5 @@ PYBIND11_MODULE(_core, m) {
     bind_measurement(m);
     bind_histogram(m);
     bind_kalman(m);
+    bind_ekf(m);
 }

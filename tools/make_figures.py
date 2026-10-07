@@ -250,6 +250,51 @@ def tracking():
     save(fig, "05_tracking.png")
 
 
+# ---------------------------------------------------------------- chapter 6
+@figure("06")
+def ekf_localization():
+    landmarks = np.array([[0.0, 4.5], [3.5, 3.0], [3.0, -3.5], [-3.0, -3.0], [-3.5, 2.5], [0.5, -5.0]])
+    dd, dt, k = se.DifferentialDrive(0.1, 0.5), 0.1, 2e-4
+    sensor = se.RangeBearingSensor(max_range=4.0, fov=np.deg2rad(180), sigma_range=0.05, sigma_bearing=0.02)
+    u = np.vstack([se.figure_eight_controls(2.0, 200, dt)] * 2)
+    x0, P0 = np.zeros(3), np.diag([1e-4, 1e-4, 1e-5])
+    run = se.simulate_landmark_run(x0, u, dt, dd, k, sensor, landmarks, 5, se.Rng(3))
+    ekf = se.EkfLocalization(x0, P0)
+    dr = se.DeadReckoning(x0, P0)
+    est, covs, drp = [x0], [P0], [x0]
+    for s, (dl, dr_) in enumerate(run.wheel_travel):
+        ekf.predict_wheels(dd, dl, dr_, k * abs(dl), k * abs(dr_))
+        dr.predict_wheels(dd, dl, dr_, k * abs(dl), k * abs(dr_))
+        ekf.update_landmarks(run.scans[s], landmarks, sensor.R())
+        est.append(ekf.pose); covs.append(ekf.covariance); drp.append(dr.pose)
+    est, covs, drp = np.array(est), np.array(covs), np.array(drp)
+    t = np.arange(len(est)) * dt
+    fig = plt.figure(figsize=(15, 5))
+    ax = plotting.new_axes(fig.add_subplot(1, 2, 1))
+    ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=13, mec="k", label="landmarks")
+    plotting.plot_trajectory(ax, run.truth, "truth", plotting.COLORS["truth"])
+    plotting.plot_trajectory(ax, drp, "dead reckoning", plotting.COLORS["dead_reckoning"], ls="--")
+    plotting.plot_trajectory(ax, est, "EKF", plotting.COLORS["estimate"])
+    for i in range(0, len(est), 40):
+        plotting.plot_ellipse(ax, est[i], covs[i] * 1.0, 0.99, color=plotting.COLORS["estimate"], lw=0.8)
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=4)
+    ax.set_title("EKF localisation with known landmarks (99 % ellipses)")
+    err = run.truth - est
+    err[:, 2] = [se.wrap_angle(a) for a in err[:, 2]]
+    for i, name in enumerate(["x [m]", "y [m]", "θ [rad]"]):
+        a = fig.add_subplot(3, 2, 2 * (i + 1))
+        sd = 3 * np.sqrt(covs[:, i, i])
+        a.fill_between(t, -sd, sd, color=plotting.COLORS["estimate"], alpha=0.25, label="±3σ")
+        a.plot(t, err[:, i], color=plotting.COLORS["truth"], lw=0.8, label="error")
+        a.set_ylabel(name)
+        a.grid(alpha=0.3)
+        if i == 0:
+            a.legend(fontsize=8, loc="upper right")
+            a.set_title("errors stay inside the ±3σ band; σ is a saw-tooth between scans")
+    a.set_xlabel("t [s]")
+    save(fig, "06_ekf_localization.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:

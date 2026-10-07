@@ -22,8 +22,8 @@ void bind_kalman(py::module_& m) {
         .def("update_with_gain", &KalmanFilter::update_with_gain, py::arg("z"), py::arg("H"), py::arg("R"),
              py::arg("K"), py::arg("joseph"))
         .def("set_state", &KalmanFilter::set_state, py::arg("x"), py::arg("P"))
-        .def_property_readonly("x", &KalmanFilter::x)
-        .def_property_readonly("P", &KalmanFilter::P);
+        .def_property_readonly("x", [](const KalmanFilter& f) -> VectorXd { return f.x(); })
+        .def_property_readonly("P", [](const KalmanFilter& f) -> MatrixXd { return f.P(); });
 
     m.def("nees", &nees, py::arg("x_true"), py::arg("x_hat"), py::arg("P"), "eq. (5.14)");
     m.def("average_chi2_bounds", &average_chi2_bounds, py::arg("dof"), py::arg("runs"), py::arg("alpha") = 0.05,

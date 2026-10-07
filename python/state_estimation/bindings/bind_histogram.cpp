@@ -9,7 +9,7 @@ void bind_histogram(py::module_& m) {
         .def("predict", &DiscreteBayesFilter::predict, py::arg("transition"))
         .def("predict_cyclic", &DiscreteBayesFilter::predict_cyclic, py::arg("kernel"), py::arg("offset"))
         .def("update", &DiscreteBayesFilter::update, py::arg("likelihood"))
-        .def_property_readonly("belief", &DiscreteBayesFilter::belief);
+        .def_property_readonly("belief", [](const DiscreteBayesFilter& f) -> VectorXd { return f.belief(); });
 
     py::class_<GridSpec>(m, "GridSpec")
         .def(py::init([](double x_min, double x_max, double y_min, double y_max, double resolution, int n_theta) {
@@ -45,5 +45,5 @@ void bind_histogram(py::module_& m) {
         .def("covariance", &GridLocalization::covariance)
         .def("map_estimate", &GridLocalization::map_estimate)
         .def("marginal_xy", &GridLocalization::marginal_xy)
-        .def_property("belief", &GridLocalization::belief, &GridLocalization::set_belief);
+        .def_property("belief", [](const GridLocalization& g) -> VectorXd { return g.belief(); }, &GridLocalization::set_belief);
 }
