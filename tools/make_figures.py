@@ -129,6 +129,35 @@ def dead_reckoning():
     save(fig, "02_dead_reckoning.png")
 
 
+# ---------------------------------------------------------------- chapter 3
+@figure("03")
+def likelihoods():
+    truth = np.array([2.0, 1.0, 0.6])
+    m = np.array([5.0, 4.0])
+    z = se.range_bearing(truth, m)
+    fix = se.position_fix(truth, np.zeros(2))
+    xs, ys = np.linspace(-1, 6, 141), np.linspace(-2, 5, 141)
+    sr, sb, sg = 0.15, 0.05, 0.5
+    panels = {
+        "range only": lambda p: se.measurement_log_likelihood(z[:1], se.range_bearing(p, m)[:1], np.eye(1) * sr**2),
+        "bearing only": lambda p: se.measurement_log_likelihood(z[1:], se.range_bearing(p, m)[1:],
+                                                                np.eye(1) * sb**2, [0]),
+        "range and bearing": lambda p: se.measurement_log_likelihood(z, se.range_bearing(p, m),
+                                                                     np.diag([sr**2, sb**2]), [1]),
+        "position fix": lambda p: se.measurement_log_likelihood(fix, se.position_fix(p, np.zeros(2)),
+                                                                np.eye(2) * sg**2),
+    }
+    fig, axes = plt.subplots(1, 4, figsize=(15, 4), sharey=True)
+    for ax, (title, loglik) in zip(axes, panels.items()):
+        L = np.array([[loglik(np.array([x, y, truth[2]])) for x in xs] for y in ys])
+        ax.imshow(np.exp(L - L.max()), origin="lower", extent=(xs[0], xs[-1], ys[0], ys[-1]), cmap="viridis")
+        ax.plot(*m, "*", color=plotting.COLORS["landmark"], ms=14, mec="k")
+        ax.plot(*truth[:2], "o", color="w", ms=5, mec="k")
+        ax.set_title(title)
+    fig.suptitle("Likelihood p(z | x, y, θ) of one reading over the robot position (heading known)")
+    save(fig, "03_likelihoods.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:

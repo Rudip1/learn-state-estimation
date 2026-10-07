@@ -8,6 +8,7 @@ FetchContent_MakeAvailable(Catch2)
 set(SE_TESTS
     test_gaussian.cpp
     test_motion_models.cpp
+    test_measurement_models.cpp
 )
 
 add_executable(state_estimation_tests ${SE_TESTS})

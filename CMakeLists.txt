@@ -41,6 +41,7 @@ endif()
 # ---- The library ----
 add_library(state_estimation STATIC
     cpp/src/gaussian.cpp
+    cpp/src/measurement_models.cpp
     cpp/src/motion_models.cpp
     cpp/src/pose2.cpp
     cpp/src/simulation.cpp
@@ -68,6 +69,7 @@ if(SE_BUILD_PYTHON)
         python/state_estimation/bindings/module.cpp
         python/state_estimation/bindings/bind_gaussian.cpp
         python/state_estimation/bindings/bind_motion.cpp
+        python/state_estimation/bindings/bind_measurement.cpp
     )
     target_link_libraries(_core PRIVATE state_estimation)
     install(TARGETS _core DESTINATION state_estimation)
