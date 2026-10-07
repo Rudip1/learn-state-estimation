@@ -295,6 +295,38 @@ def ekf_localization():
     save(fig, "06_ekf_localization.png")
 
 
+# ---------------------------------------------------------------- chapter 7
+@figure("07")
+def mcl():
+    landmarks = np.array([[2.0, 2.0], [2.0, 6.0], [10.0, 2.0], [10.0, 6.0], [6.0, 4.0], [8.5, 6.5]])
+    dd, dt, k = se.DifferentialDrive(0.1, 0.5), 0.1, 1e-4
+    u = np.vstack([np.tile([0.5, 0.0], (60, 1)), np.tile([0.5, 0.5], (31, 1)), np.tile([0.5, 0.0], (80, 1))])
+    sensor = se.RangeBearingSensor(max_range=4.0, fov=2 * np.pi, sigma_range=0.1, sigma_bearing=0.05)
+    run = se.simulate_landmark_run(np.array([3.0, 1.0, 0.0]), u, dt, dd, k, sensor, landmarks, 5, se.Rng(2))
+    pf = se.ParticleFilterLocalization(4000, 1)
+    pf.init_uniform(0, 12, 0, 8)
+    snaps = {0: pf.particles}
+    for s, (dl, dr) in enumerate(run.wheel_travel):
+        pf.predict_wheels(dd, dl, dr, 4 * k)
+        if run.scans[s]:
+            pf.update_landmarks_anonymous(run.scans[s], landmarks, sensor.R())
+            pf.resample_if_needed(0.5)
+        if s + 1 in (5, 30, len(u)):
+            snaps[s + 1] = pf.particles
+    fig, axes = plt.subplots(1, 4, figsize=(16, 3.6))
+    for ax, (kk, P) in zip(axes, snaps.items()):
+        ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=11, mec="k")
+        ax.plot(run.truth[: kk + 1, 0], run.truth[: kk + 1, 1], color=plotting.COLORS["truth"], lw=1)
+        ax.plot(*run.truth[kk, :2], "o", color="w", mec="k", ms=7)
+        ax.plot(P[:, 0], P[:, 1], ".", ms=2, color=plotting.COLORS["particles"], alpha=0.6)
+        ax.set_xlim(0, 12)
+        ax.set_ylim(0, 8)
+        ax.set_aspect("equal")
+        ax.set_title(f"step {kk}")
+    fig.suptitle("Monte Carlo localisation from a uniform start, indistinguishable landmarks (4000 particles)")
+    save(fig, "07_mcl.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:

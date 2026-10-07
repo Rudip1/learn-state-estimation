@@ -12,6 +12,7 @@ set(SE_TESTS
     test_histogram_filter.cpp
     test_kalman_filter.cpp
     test_ekf.cpp
+    test_particle_filter.cpp
 )
 
 add_executable(state_estimation_tests ${SE_TESTS})
