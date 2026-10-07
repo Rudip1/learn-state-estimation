@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test-notebooks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: System packages
+        run: sudo apt-get update && sudo apt-get install -y libeigen3-dev ninja-build
+
+      - name: Build C++ library, tests and examples
+        run: |
+          cmake -S . -B build/cmake -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/cmake
+
+      - name: C++ tests
+        run: ctest --test-dir build/cmake --output-on-failure
+
+      - name: Install the Python module
+        run: python -m pip install ".[notebooks]"
+
+      - name: Exercise notebooks are in sync with the solutions
+        run: |
+          python tools/make_exercises.py
+          git diff --exit-code -- 2_notebooks/exercises
+
+      - name: Execute every solution notebook
+        run: python tools/run_notebooks.py 2_notebooks/solutions
