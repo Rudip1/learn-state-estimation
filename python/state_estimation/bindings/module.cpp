@@ -6,4 +6,5 @@ PYBIND11_MODULE(_core, m) {
     bind_motion(m);
     bind_measurement(m);
     bind_histogram(m);
+    bind_kalman(m);
 }

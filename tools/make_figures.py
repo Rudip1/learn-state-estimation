@@ -189,6 +189,67 @@ def grid_localization():
     save(fig, "04_grid_localization.png")
 
 
+# ---------------------------------------------------------------- chapter 5
+def track_cv(model, H, R, run, x0, P0):
+    kf = se.KalmanFilter(x0, P0)
+    xs, Ps = [x0], [P0]
+    for z in run.measurements:
+        kf.predict(model.F, model.Q)
+        kf.update(z, H, R)
+        xs.append(kf.x.copy())
+        Ps.append(kf.P.copy())
+    return np.array(xs), np.array(Ps)
+
+
+@figure("05")
+def tracking():
+    dt, q, steps = 0.1, 0.05, 150
+    model = se.constant_velocity_model(2, dt, q)
+    H = np.hstack([np.eye(2), np.zeros((2, 2))])
+    R = np.eye(2) * 0.3**2
+    x0, P0 = np.array([0.0, 0.0, 1.0, 0.6]), np.diag([1.0, 1.0, 0.5, 0.5])
+    rng = se.Rng(1)
+    run = se.simulate_linear_system(model.F, model.Q, H, R, x0, steps, rng)
+    xs, Ps = track_cv(model, H, R, run, x0, P0)
+    t = np.arange(steps + 1) * dt
+    runs, nees = 50, np.zeros(steps)
+    for _ in range(runs):
+        start = se.sample_gaussian(x0, P0, 1, rng)[0]
+        r = se.simulate_linear_system(model.F, model.Q, H, R, start, steps, rng)
+        e, P = track_cv(model, H, R, r, x0, P0)
+        nees += [se.nees(r.states[k + 1], e[k + 1], P[k + 1]) for k in range(steps)]
+    nees /= runs
+    lo, hi = se.average_chi2_bounds(4, runs)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    ax = plotting.new_axes(axes[0])
+    ax.plot(run.measurements[:, 0], run.measurements[:, 1], ".", ms=3, color=plotting.COLORS["measurement"],
+            label="position measurements")
+    ax.plot(run.states[:, 0], run.states[:, 1], color=plotting.COLORS["truth"], label="truth")
+    ax.plot(xs[:, 0], xs[:, 1], color=plotting.COLORS["estimate"], label="Kalman filter")
+    ax.legend(fontsize=8)
+    ax.set_title("constant-velocity target")
+    ax = axes[1]
+    sd = np.sqrt(Ps[:, 2, 2])
+    ax.plot(t, run.states[:, 2], color=plotting.COLORS["truth"], label="true $v_x$")
+    ax.plot(t, xs[:, 2], color=plotting.COLORS["estimate"], label="estimated $v_x$ (never measured)")
+    ax.fill_between(t, xs[:, 2] - 2 * sd, xs[:, 2] + 2 * sd, color=plotting.COLORS["estimate"], alpha=0.2,
+                    label="±2σ")
+    ax.set_xlabel("t [s]")
+    ax.legend(fontsize=8)
+    ax.grid(alpha=0.3)
+    ax = axes[2]
+    ax.plot(t[1:], nees, color=plotting.COLORS["estimate"], label=f"average NEES, {runs} runs")
+    ax.axhline(lo, color="k", ls="--", lw=1, label="95 % bounds (5.15)")
+    ax.axhline(hi, color="k", ls="--", lw=1)
+    ax.axhline(4, color="k", lw=0.5)
+    inside = np.mean((nees >= lo) & (nees <= hi))
+    ax.set_title(f"consistency: {100 * inside:.0f} % of steps inside")
+    ax.set_xlabel("t [s]")
+    ax.legend(fontsize=8)
+    ax.grid(alpha=0.3)
+    save(fig, "05_tracking.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:

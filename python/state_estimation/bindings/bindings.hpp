@@ -11,3 +11,4 @@ void bind_gaussian(py::module_& m);
 void bind_motion(py::module_& m);
 void bind_measurement(py::module_& m);
 void bind_histogram(py::module_& m);
+void bind_kalman(py::module_& m);
