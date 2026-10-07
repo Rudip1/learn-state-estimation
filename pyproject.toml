@@ -1,0 +1,27 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "state_estimation"
+version = "0.1.0"
+description = "Probabilistic state estimation and SLAM for mobile robots: C++ algorithms with Python bindings"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "matplotlib>=3.7"]
+
+[project.optional-dependencies]
+notebooks = ["scipy>=1.10", "nbclient>=0.10", "nbformat>=5.9", "ipykernel>=6.0", "gtsam>=4.2"]
+
+[project.urls]
+Homepage = "https://github.com/Rudip1/learn-state-estimation"
+
+[tool.scikit-build]
+minimum-version = "0.10"
+build-dir = "build/{wheel_tag}"
+cmake.version = ">=3.20"
+cmake.build-type = "Release"
+wheel.packages = ["python/state_estimation"]
+wheel.exclude = ["state_estimation/bindings/**"]
+sdist.exclude = ["build", "2_notebooks", "1_theory/figures"]
