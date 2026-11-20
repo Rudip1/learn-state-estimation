@@ -50,6 +50,8 @@ add_library(state_estimation STATIC
     cpp/src/motion_models.cpp
     cpp/src/particle_filter.cpp
     cpp/src/pose2.cpp
+    cpp/src/pose_graph.cpp
+    cpp/src/scan_matching.cpp
     cpp/src/simulation.cpp
 )
 target_include_directories(state_estimation PUBLIC
@@ -82,6 +84,7 @@ if(SE_BUILD_PYTHON)
         python/state_estimation/bindings/bind_particle.cpp
         python/state_estimation/bindings/bind_association.cpp
         python/state_estimation/bindings/bind_slam.cpp
+        python/state_estimation/bindings/bind_pose_graph.cpp
     )
     target_link_libraries(_core PRIVATE state_estimation)
     install(TARGETS _core DESTINATION state_estimation)

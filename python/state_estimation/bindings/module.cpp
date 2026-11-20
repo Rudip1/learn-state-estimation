@@ -11,4 +11,5 @@ PYBIND11_MODULE(_core, m) {
     bind_particle(m);
     bind_association(m);
     bind_slam(m);
+    bind_pose_graph(m);
 }

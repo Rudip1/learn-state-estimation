@@ -17,3 +17,4 @@ void bind_ekf(py::module_& m);
 void bind_particle(py::module_& m);
 void bind_association(py::module_& m);
 void bind_slam(py::module_& m);
+void bind_pose_graph(py::module_& m);
