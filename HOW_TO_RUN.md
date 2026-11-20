@@ -42,6 +42,8 @@ make notebooks                          # execute every solution notebook top to
 - `2_notebooks/exercises/` — generated from the solutions by `make exercises`, which replaces every block between
   `### BEGIN SOLUTION` and `### END SOLUTION` with a placeholder and clears all outputs. Edit the solutions, then
   regenerate; never edit the exercise copies by hand.
+- Chapter 10 compares its pose graph with [GTSAM](https://gtsam.org) if it is installed (`pip install gtsam`);
+  without it that cell is skipped.
 
 ### Colab
 

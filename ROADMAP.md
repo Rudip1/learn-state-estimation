@@ -11,4 +11,4 @@ Chapters follow `docs/CHAPTER_PLAN.md`; each finished chapter has its theory tex
 - [x] 07 The particle filter
 - [x] 08 Data association
 - [x] 09 Feature-based EKF SLAM
-- [ ] 10 Pose-based SLAM with scan matching
+- [x] 10 Pose-based SLAM with scan matching

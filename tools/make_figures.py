@@ -419,6 +419,54 @@ def ekf_slam():
     save(fig, "09_ekf_slam.png")
 
 
+# ---------------------------------------------------------------- chapter 10
+def office_slam(seed=5, k=2e-4):
+    """The chapter-10 scenario: two laps of the office, a keyframe every 10 steps, a 180-beam lidar."""
+    dd, dt, x0 = se.DifferentialDrive(0.1, 0.5), 0.1, np.array([-5.5, -4.0, 0.0])
+    walls = se.office_world()
+    run = se.simulate_lidar_run(x0, se.office_lap_controls(2, dt), dt, dd, k, walls, 10, 180, 8.0, 0.01, se.Rng(seed))
+    slam = se.PoseGraphSlam(x0, run.scans[0])
+    for f in range(1, len(run.scans)):
+        slam.add_keyframe(run.odometry[f], run.odometry_cov[f], run.scans[f])
+    dr = se.run_dead_reckoning(x0, np.zeros((3, 3)), run.wheel_travel, dd, k)
+    return walls, run, slam, dr
+
+
+def draw_walls(ax, walls):
+    for w in walls:
+        ax.plot([w.a[0], w.b[0]], [w.a[1], w.b[1]], color="0.6", lw=3, solid_capstyle="round", zorder=0)
+
+
+@figure("10")
+def pose_graph_slam():
+    walls, run, slam, dr = office_slam()
+    g = slam.graph
+    keys = run.keyframes
+    fig = plt.figure(figsize=(16, 5))
+    for col, (title, poses, color) in enumerate(
+        [("dead reckoning: scans drawn at the odometry poses", dr.poses[keys], plotting.COLORS["dead_reckoning"]),
+         ("pose-graph SLAM: scans drawn at the optimised poses", g.nodes, plotting.COLORS["estimate"])]):
+        ax = plotting.new_axes(fig.add_subplot(1, 3, col + 1))
+        draw_walls(ax, walls)
+        pts = np.vstack([se.transform_points(poses[f], run.scans[f]) for f in range(len(keys))])
+        ax.plot(pts[:, 0], pts[:, 1], ".", ms=0.6, color=color, alpha=0.5)
+        ax.plot(poses[:, 0], poses[:, 1], "-", color=color, lw=1.2, label="estimated trajectory")
+        ax.plot(run.truth[:, 0], run.truth[:, 1], "--", color=plotting.COLORS["truth"], lw=0.8, label="truth")
+        if col == 1:
+            for a, b in slam.loop_closures:
+                ax.plot(poses[[a, b], 0], poses[[a, b], 1], "-", color=plotting.COLORS["measurement"], lw=0.6)
+            ax.plot([], [], "-", color=plotting.COLORS["measurement"], label="loop closures")
+        ax.set_xlim(-11, 11); ax.set_ylim(-8.5, 8.5)
+        ax.legend(fontsize=7, loc="lower right")
+        ax.set_title(title, fontsize=10)
+    ax = fig.add_subplot(1, 3, 3)
+    H = g.information_matrix()
+    ax.spy(np.abs(H) > 0, markersize=0.4, color="k")
+    ax.set_title(f"sparsity of H: {g.n_nodes} nodes, {g.n_edges} edges", fontsize=10)
+    ax.set_xlabel("node × 3"); ax.set_ylabel("node × 3")
+    save(fig, "10_pose_graph_slam.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:
