@@ -7,8 +7,8 @@ Chapters follow `docs/CHAPTER_PLAN.md`; each finished chapter has its theory tex
 - [x] 03 Measurement models
 - [x] 04 The Bayes filter and histogram (grid) localization.
 - [x] 05 The Kalman filter
-- [ ] 06 The EKF
-- [ ] 07 The particle filter
-- [ ] 08 Data association
-- [ ] 09 Feature-based EKF SLAM
+- [x] 06 The EKF
+- [x] 07 The particle filter
+- [x] 08 Data association
+- [x] 09 Feature-based EKF SLAM
 - [ ] 10 Pose-based SLAM with scan matching

@@ -250,6 +250,175 @@ def tracking():
     save(fig, "05_tracking.png")
 
 
+# ---------------------------------------------------------------- chapter 6
+@figure("06")
+def ekf_localization():
+    landmarks = np.array([[0.0, 4.5], [3.5, 3.0], [3.0, -3.5], [-3.0, -3.0], [-3.5, 2.5], [0.5, -5.0]])
+    dd, dt, k = se.DifferentialDrive(0.1, 0.5), 0.1, 2e-4
+    sensor = se.RangeBearingSensor(max_range=4.0, fov=np.deg2rad(180), sigma_range=0.05, sigma_bearing=0.02)
+    u = np.vstack([se.figure_eight_controls(2.0, 200, dt)] * 2)
+    x0, P0 = np.zeros(3), np.diag([1e-4, 1e-4, 1e-5])
+    run = se.simulate_landmark_run(x0, u, dt, dd, k, sensor, landmarks, 5, se.Rng(3))
+    ekf = se.EkfLocalization(x0, P0)
+    dr = se.DeadReckoning(x0, P0)
+    est, covs, drp = [x0], [P0], [x0]
+    for s, (dl, dr_) in enumerate(run.wheel_travel):
+        ekf.predict_wheels(dd, dl, dr_, k * abs(dl), k * abs(dr_))
+        dr.predict_wheels(dd, dl, dr_, k * abs(dl), k * abs(dr_))
+        ekf.update_landmarks(run.scans[s], landmarks, sensor.R())
+        est.append(ekf.pose); covs.append(ekf.covariance); drp.append(dr.pose)
+    est, covs, drp = np.array(est), np.array(covs), np.array(drp)
+    t = np.arange(len(est)) * dt
+    fig = plt.figure(figsize=(15, 5))
+    ax = plotting.new_axes(fig.add_subplot(1, 2, 1))
+    ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=13, mec="k", label="landmarks")
+    plotting.plot_trajectory(ax, run.truth, "truth", plotting.COLORS["truth"])
+    plotting.plot_trajectory(ax, drp, "dead reckoning", plotting.COLORS["dead_reckoning"], ls="--")
+    plotting.plot_trajectory(ax, est, "EKF", plotting.COLORS["estimate"])
+    for i in range(0, len(est), 40):
+        plotting.plot_ellipse(ax, est[i], covs[i] * 1.0, 0.99, color=plotting.COLORS["estimate"], lw=0.8)
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=4)
+    ax.set_title("EKF localisation with known landmarks (99 % ellipses)")
+    err = run.truth - est
+    err[:, 2] = [se.wrap_angle(a) for a in err[:, 2]]
+    for i, name in enumerate(["x [m]", "y [m]", "θ [rad]"]):
+        a = fig.add_subplot(3, 2, 2 * (i + 1))
+        sd = 3 * np.sqrt(covs[:, i, i])
+        a.fill_between(t, -sd, sd, color=plotting.COLORS["estimate"], alpha=0.25, label="±3σ")
+        a.plot(t, err[:, i], color=plotting.COLORS["truth"], lw=0.8, label="error")
+        a.set_ylabel(name)
+        a.grid(alpha=0.3)
+        if i == 0:
+            a.legend(fontsize=8, loc="upper right")
+            a.set_title("errors stay inside the ±3σ band; σ is a saw-tooth between scans")
+    a.set_xlabel("t [s]")
+    save(fig, "06_ekf_localization.png")
+
+
+# ---------------------------------------------------------------- chapter 7
+@figure("07")
+def mcl():
+    landmarks = np.array([[2.0, 2.0], [2.0, 6.0], [10.0, 2.0], [10.0, 6.0], [6.0, 4.0], [8.5, 6.5]])
+    dd, dt, k = se.DifferentialDrive(0.1, 0.5), 0.1, 1e-4
+    u = np.vstack([np.tile([0.5, 0.0], (60, 1)), np.tile([0.5, 0.5], (31, 1)), np.tile([0.5, 0.0], (80, 1))])
+    sensor = se.RangeBearingSensor(max_range=4.0, fov=2 * np.pi, sigma_range=0.1, sigma_bearing=0.05)
+    run = se.simulate_landmark_run(np.array([3.0, 1.0, 0.0]), u, dt, dd, k, sensor, landmarks, 5, se.Rng(2))
+    pf = se.ParticleFilterLocalization(4000, 1)
+    pf.init_uniform(0, 12, 0, 8)
+    snaps = {0: pf.particles}
+    for s, (dl, dr) in enumerate(run.wheel_travel):
+        pf.predict_wheels(dd, dl, dr, 4 * k)
+        if run.scans[s]:
+            pf.update_landmarks_anonymous(run.scans[s], landmarks, sensor.R())
+            pf.resample_if_needed(0.5)
+        if s + 1 in (5, 30, len(u)):
+            snaps[s + 1] = pf.particles
+    fig, axes = plt.subplots(1, 4, figsize=(16, 3.6))
+    for ax, (kk, P) in zip(axes, snaps.items()):
+        ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=11, mec="k")
+        ax.plot(run.truth[: kk + 1, 0], run.truth[: kk + 1, 1], color=plotting.COLORS["truth"], lw=1)
+        ax.plot(*run.truth[kk, :2], "o", color="w", mec="k", ms=7)
+        ax.plot(P[:, 0], P[:, 1], ".", ms=2, color=plotting.COLORS["particles"], alpha=0.6)
+        ax.set_xlim(0, 12)
+        ax.set_ylim(0, 8)
+        ax.set_aspect("equal")
+        ax.set_title(f"step {kk}")
+    fig.suptitle("Monte Carlo localisation from a uniform start, indistinguishable landmarks (4000 particles)")
+    save(fig, "07_mcl.png")
+
+
+# ---------------------------------------------------------------- chapter 8
+@figure("08")
+def jcbb_corridor():
+    # The worked example of section 8.3, drawn in the world frame from the estimated robot position (origin).
+    offset = 0.9
+    landmarks = np.array([[float(j), 0.0] for j in range(4)])
+    P = np.diag([1.0, 0.01])
+    R = np.eye(2) * 0.01
+    noise = np.array([[-0.01, 0.0], [0.01, 0.005], [-0.01, 0.01], [0.01, 0.015]])
+    z = landmarks - np.array([offset, 0.0]) + noise
+    problem = se.AssociationProblem(list(z), list(landmarks), [-np.eye(2)] * 4, P, R)
+    results = {"ICNN": se.associate_icnn(problem), "JCBB": se.associate_jcbb(problem)}
+    fig, axes = plt.subplots(2, 1, figsize=(8, 4.4), sharex=True)
+    for ax, (name, a) in zip(axes, results.items()):
+        ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=14, mec="k",
+                label="landmarks")
+        ax.plot(z[:, 0], z[:, 1], "o", color=plotting.COLORS["measurement"], label="readings (from the estimate)")
+        for i, j in enumerate(a.pairing):
+            if j >= 0:
+                ax.annotate("", xy=landmarks[j], xytext=z[i],
+                            arrowprops=dict(arrowstyle="->", color=plotting.COLORS["estimate"]))
+        plotting.plot_ellipse(ax, [0, 0], P, 0.95, color="0.4", ls="--", label="robot position, 95 %")
+        nis, dof = se.joint_nis(problem, a.pairing)
+        ax.set_title(f"{name}: pairing {list(a.pairing)}, joint NIS {nis:.1f} "
+                     f"(gate {se.chi2_quantile(0.95, dof):.1f})", fontsize=10)
+        ax.set_ylim(-0.6, 0.6)
+        ax.set_aspect("equal")
+        ax.grid(alpha=0.3)
+    axes[0].legend(fontsize=7, loc="upper right", ncol=3)
+    save(fig, "08_jcbb_corridor.png")
+
+
+# ---------------------------------------------------------------- chapter 9
+def slam_loop_scenario():
+    angles = np.linspace(0, 2 * np.pi, 13)[:-1]
+    landmarks = np.vstack([np.c_[8.0 * np.cos(angles), 8.0 * np.sin(angles)],
+                           np.c_[4.0 * np.cos(angles + 0.26), 4.0 * np.sin(angles + 0.26)]])
+    dd, dt, k = se.DifferentialDrive(0.1, 0.5), 0.1, 2e-4
+    steps = int(2 * np.pi * 6.0 / (0.5 * dt))  # one loop of radius 6 m at 0.5 m/s
+    u = se.circle_controls(0.5, 6.0, int(steps * 1.15))
+    sensor = se.RangeBearingSensor(max_range=3.0, fov=np.deg2rad(180), sigma_range=0.05, sigma_bearing=0.02)
+    x0 = np.array([6.0, 0.0, np.pi / 2])
+    return landmarks, dd, dt, k, u, sensor, x0, steps
+
+
+def run_slam(landmarks, dd, dt, k, u, sensor, x0, seed=1, every=2):
+    run = se.simulate_landmark_run(x0, u, dt, dd, k, sensor, landmarks, every, se.Rng(seed))
+    slam = se.EkfSlam(x0, np.zeros((3, 3)))
+    poses, sig, nland = [x0], [0.0], [0]
+    for s, (dl, dr) in enumerate(run.wheel_travel):
+        slam.predict_wheels(dd, dl, dr, k * abs(dl), k * abs(dr))
+        slam.process_known(run.scans[s], sensor.R())
+        poses.append(slam.pose)
+        sig.append(np.sqrt(np.trace(slam.pose_covariance[:2, :2])))
+        nland.append(slam.n_landmarks)
+    return run, slam, np.array(poses), np.array(sig), np.array(nland)
+
+
+@figure("09")
+def ekf_slam():
+    landmarks, dd, dt, k, u, sensor, x0, steps = slam_loop_scenario()
+    run, slam, poses, sig, nland = run_slam(landmarks, dd, dt, k, u, sensor, x0)
+    fig = plt.figure(figsize=(14, 5.5))
+    ax = plotting.new_axes(fig.add_subplot(1, 2, 1))
+    ax.plot(landmarks[:, 0], landmarks[:, 1], "*", color=plotting.COLORS["landmark"], ms=10, mec="k",
+            label="true landmarks")
+    plotting.plot_trajectory(ax, run.truth, "truth", plotting.COLORS["truth"])
+    plotting.plot_trajectory(ax, poses, "EKF SLAM", plotting.COLORS["estimate"])
+    for i in range(slam.n_landmarks):
+        plotting.plot_ellipse(ax, slam.landmark(i), slam.landmark_covariance(i) * 25, 0.95,
+                              color=plotting.COLORS["estimate"], lw=1)
+    ax.plot(slam.landmarks[:, 0], slam.landmarks[:, 1], "+", color=plotting.COLORS["estimate"], ms=8,
+            label="estimated landmarks (95 % ellipses × 5)")
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.07), ncol=2)
+    ax.set_title("map and trajectory after one loop")
+    a = fig.add_subplot(1, 2, 2)
+    t = np.arange(len(sig)) * dt
+    a.plot(t, sig, color=plotting.COLORS["estimate"], label="robot position σ (√trace)")
+    closure = int(np.argmin(np.diff(sig))) + 1  # the largest single-step drop
+    a.axvline(t[closure], color="k", ls=":", label="loop closure")
+    a.set_xlabel("t [s]")
+    a.set_ylabel("σ [m]")
+    a2 = a.twinx()
+    a2.plot(t, nland, color=plotting.COLORS["landmark"], label="landmarks in the map")
+    a2.set_ylabel("landmarks")
+    a.legend(loc="upper left", fontsize=8)
+    a2.legend(loc="center left", fontsize=8)
+    a.grid(alpha=0.3)
+    a.set_title("uncertainty grows while exploring and collapses at the loop closure")
+    save(fig, "09_ekf_slam.png")
+
+
 def main(argv: list[str]) -> int:
     for chapter in sorted(FIGURES):
         if argv and chapter not in argv:

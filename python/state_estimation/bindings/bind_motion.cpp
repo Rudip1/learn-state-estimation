@@ -61,8 +61,8 @@ void bind_motion(py::module_& m) {
         .def("predict_displacement", &DeadReckoning::predict_displacement, py::arg("u"), py::arg("Q"))
         .def("predict_wheels", &DeadReckoning::predict_wheels, py::arg("dd"), py::arg("d_left"),
              py::arg("d_right"), py::arg("var_left"), py::arg("var_right"))
-        .def_property_readonly("pose", &DeadReckoning::pose)
-        .def_property_readonly("covariance", &DeadReckoning::covariance);
+        .def_property_readonly("pose", [](const DeadReckoning& d) -> Pose2 { return d.pose(); })
+        .def_property_readonly("covariance", [](const DeadReckoning& d) -> Matrix3d { return d.covariance(); });
 
     // ---- simulation ----
     m.def("circle_controls", &circle_controls, py::arg("v"), py::arg("radius"), py::arg("steps"));
