@@ -55,10 +55,6 @@ tools/         figure generator and notebook tooling
   this library's C++ (chapters 2, 6, 8, 9 and 10).
 * [robotics-learning](https://github.com/Rudip1/robotics-learning) — the umbrella of all learn-* modules.
 
-## Acknowledgements
-
-Chapters 6 and 9 grew out of joint work with Gebrecherkos Gebreslassie.
-
 ## Licence
 
 Code: Apache-2.0 ([LICENSE](LICENSE)). Theory texts and figures in `1_theory/`: CC BY 4.0.

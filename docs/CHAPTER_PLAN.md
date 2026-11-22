@@ -17,4 +17,3 @@ reckoning, KF/EKF localization, particle filter, feature-based EKF SLAM. The cou
     factor graphs (compare against GTSAM in a notebook).
 
 Used in: [pekf-slam-icp](https://github.com/Rudip1/pekf-slam-icp).
-Acknowledgement: chapters 6 and 9 grew out of joint work with Gebrecherkos Gebreslassie.
